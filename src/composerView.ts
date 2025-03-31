@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon, ButtonComponent, MarkdownView } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, setIcon, ButtonComponent, MarkdownView, renderMarkdown } from 'obsidian';
 import { GeminiAPIService } from './geminiApi';
 import { GeminiAssistantSettings } from './settings';
 
@@ -64,57 +64,6 @@ export class ComposerView extends ItemView {
                 placeholder: 'Enter instructions for Gemini...',
                 rows: '5'
             }
-        });
-        
-        // Advanced options toggle
-        const advancedOptionsToggle = promptSection.createDiv({ cls: 'gemini-composer-advanced-toggle' });
-        const toggleButton = advancedOptionsToggle.createEl('button', { 
-            cls: 'gemini-composer-toggle-btn',
-            text: 'Advanced options'
-        });
-        
-        const advancedOptionsContent = promptSection.createDiv({ cls: 'gemini-composer-advanced-options' });
-        advancedOptionsContent.style.display = 'none';
-        
-        // Advanced options content - Temperature, Max tokens, etc.
-        const temperatureContainer = advancedOptionsContent.createDiv({ cls: 'gemini-composer-option-container' });
-        temperatureContainer.createEl('label', { text: 'Temperature:', cls: 'gemini-composer-option-label' });
-        const temperatureSlider = temperatureContainer.createEl('input', {
-            cls: 'gemini-composer-slider',
-            attr: {
-                type: 'range',
-                min: '0',
-                max: '1',
-                step: '0.1',
-                value: '0.7'
-            }
-        });
-        const temperatureValue = temperatureContainer.createEl('span', { 
-            cls: 'gemini-composer-option-value',
-            text: '0.7'
-        });
-        
-        temperatureSlider.addEventListener('input', (e) => {
-            temperatureValue.textContent = (e.target as HTMLInputElement).value;
-        });
-        
-        const maxTokensContainer = advancedOptionsContent.createDiv({ cls: 'gemini-composer-option-container' });
-        maxTokensContainer.createEl('label', { text: 'Max output tokens:', cls: 'gemini-composer-option-label' });
-        const maxTokensInput = maxTokensContainer.createEl('input', {
-            cls: 'gemini-composer-number-input',
-            attr: {
-                type: 'number',
-                min: '1',
-                max: '8192',
-                value: '2048'
-            }
-        });
-        
-        // Toggle advanced options visibility
-        toggleButton.addEventListener('click', () => {
-            const isVisible = advancedOptionsContent.style.display !== 'none';
-            advancedOptionsContent.style.display = isVisible ? 'none' : 'block';
-            toggleButton.textContent = isVisible ? 'Advanced options' : 'Hide advanced options';
         });
         
         // Create buttons container with improved styling
@@ -259,57 +208,6 @@ export class ComposerView extends ItemView {
                 .gemini-composer-prompt-input:focus {
                     border-color: var(--interactive-accent);
                     outline: none;
-                }
-                
-                .gemini-composer-advanced-toggle {
-                    margin-bottom: 16px;
-                }
-                
-                .gemini-composer-toggle-btn {
-                    background: transparent;
-                    border: none;
-                    color: var(--text-accent);
-                    cursor: pointer;
-                    padding: 0;
-                    font-size: 0.9em;
-                    text-decoration: underline;
-                }
-                
-                .gemini-composer-advanced-options {
-                    background-color: var(--background-secondary-alt);
-                    border-radius: 8px;
-                    padding: 16px;
-                    margin-bottom: 16px;
-                }
-                
-                .gemini-composer-option-container {
-                    display: flex;
-                    align-items: center;
-                    margin-bottom: 12px;
-                }
-                
-                .gemini-composer-option-label {
-                    min-width: 150px;
-                    font-weight: 500;
-                }
-                
-                .gemini-composer-slider {
-                    flex: 1;
-                    margin-right: 10px;
-                }
-                
-                .gemini-composer-option-value {
-                    min-width: 30px;
-                    text-align: right;
-                }
-                
-                .gemini-composer-number-input {
-                    width: 80px;
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    border: 1px solid var(--background-modifier-border);
-                    background-color: var(--background-primary);
-                    color: var(--text-normal);
                 }
                 
                 .gemini-composer-buttons {
@@ -527,21 +425,12 @@ export class ComposerView extends ItemView {
             this.generatingContent = true;
             new Notice(`Generating content with Gemini...`);
 
-            // Get advanced options values
-            const advancedOptionsContent = document.querySelector('.gemini-composer-advanced-options');
-            const temperature = advancedOptionsContent ? 
-                parseFloat((advancedOptionsContent.querySelector('.gemini-composer-slider') as HTMLInputElement).value) : 0.7;
-            const maxTokens = advancedOptionsContent ? 
-                parseInt((advancedOptionsContent.querySelector('.gemini-composer-number-input') as HTMLInputElement).value) : 2048;
-
-            // Generate the content using settings model
+            // Generate content using the settings from the plugin settings
+            // No need to get advanced options from the UI anymore
             const response = await this.geminiApiService.generateContent(prompt);
             
             // Show the result in a modal with insert/copy options
             this.showResultModal(response);
-            
-            // Keep the prompt for potential regeneration
-            // this.clearPrompt(); - removed automatic clearing
             
         } catch (error) {
             new Notice(`Error: ${error instanceof Error ? error.message : String(error)}`);
@@ -550,14 +439,22 @@ export class ComposerView extends ItemView {
         }
     }
 
-    // New method to show the result in a modal
+    // New method to show the result in a modal with improved styling
     showResultModal(content: string): void {
         const modal = new Modal(this.app);
         modal.titleEl.setText("Generated Content");
         
-        const contentContainer = modal.contentEl.createDiv({ cls: "gemini-result-content" });
-        contentContainer.innerHTML = content;
+        // Create a container for the entire content area
+        const contentAreaContainer = modal.contentEl.createDiv({ cls: "gemini-result-area" });
         
+        // Create the content container with improved styling
+        const contentContainer = contentAreaContainer.createDiv({ cls: "gemini-result-content" });
+        
+        // Simple but effective pre-formatted text display
+        const preElement = contentContainer.createEl('pre', { cls: 'content-pre' });
+        preElement.textContent = content;
+        
+        // Create the actions container at the bottom
         const actionsContainer = modal.contentEl.createDiv({ cls: "gemini-result-actions" });
         
         // Add copy button
@@ -590,6 +487,155 @@ export class ComposerView extends ItemView {
         insertBtn.buttonEl.prepend(insertIcon);
         
         modal.contentEl.addClass("gemini-result-modal");
+        
+        // Add improved styling for the result modal
+        if (!document.getElementById('gemini-modal-styles')) {
+            const styleEl = document.createElement('style');
+            styleEl.id = 'gemini-modal-styles';
+            styleEl.textContent = `
+                .modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+                
+                .gemini-result-modal {
+                    background-color: var(--background-primary);
+                    border-radius: 8px;
+                    box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+                    width: 80%;
+                    max-width: 800px;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
+                    padding: 0;
+                    overflow: hidden;
+                }
+                
+                .modal-title-container {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 16px 20px;
+                    border-bottom: 1px solid var(--background-modifier-border);
+                    background-color: var(--background-secondary-alt);
+                }
+                
+                .modal-title {
+                    margin: 0;
+                    font-size: 1.2em;
+                    font-weight: 600;
+                    color: var(--text-normal);
+                }
+                
+                .modal-close-button {
+                    font-size: 20px;
+                    cursor: pointer;
+                    color: var(--text-muted);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                }
+                
+                .modal-close-button:hover {
+                    background-color: var(--background-modifier-hover);
+                    color: var(--text-normal);
+                }
+                
+                .gemini-result-area {
+                    flex: 1;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                }
+                
+                .gemini-result-content {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 20px;
+                    background-color: var(--background-primary);
+                    color: var(--text-normal);
+                    font-size: 0.9em;
+                    line-height: 1.5;
+                    max-height: 60vh;
+                    border: none;
+                    white-space: pre-wrap;
+                }
+                
+                .gemini-result-content .markdown-rendered {
+                    width: 100%;
+                }
+                
+                .gemini-result-content pre {
+                    background-color: var(--background-secondary-alt);
+                    padding: 10px;
+                    border-radius: 4px;
+                    overflow-x: auto;
+                }
+                
+                .gemini-result-content code {
+                    font-family: var(--font-monospace);
+                    font-size: 0.9em;
+                    padding: 2px 4px;
+                    background-color: var(--background-secondary-alt);
+                    border-radius: 3px;
+                }
+                
+                .gemini-result-actions {
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: 10px;
+                    padding: 12px 20px;
+                    border-top: 1px solid var(--background-modifier-border);
+                    background-color: var(--background-secondary-alt);
+                }
+                
+                .gemini-result-copy-btn {
+                    display: flex !important;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 6px 12px !important;
+                    border-radius: 4px;
+                    background-color: var(--background-secondary) !important;
+                    color: var(--text-normal) !important;
+                    font-size: 0.9em;
+                    font-weight: 500;
+                    border: 1px solid var(--background-modifier-border) !important;
+                }
+                
+                .gemini-result-copy-btn:hover {
+                    background-color: var(--background-modifier-hover) !important;
+                }
+                
+                .gemini-result-insert-btn {
+                    display: flex !important;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 6px 12px !important;
+                    border-radius: 4px;
+                    background-color: var(--interactive-accent) !important;
+                    color: var(--text-on-accent) !important;
+                    font-size: 0.9em;
+                    font-weight: 500;
+                    border: 1px solid transparent !important;
+                }
+                
+                .gemini-result-insert-btn:hover {
+                    filter: brightness(1.1);
+                }
+            `;
+            document.head.appendChild(styleEl);
+        }
     }
 
     // Method to insert content into the editor
@@ -671,10 +717,10 @@ class Modal {
         this.titleEl = document.createElement('h2');
         this.titleEl.className = 'modal-title';
         
-        // Create close button
+        // Create close button with an X icon
         this.closeButton = document.createElement('div');
         this.closeButton.className = 'modal-close-button';
-        this.closeButton.innerHTML = '×';
+        setIcon(this.closeButton, 'x');
         this.closeButton.addEventListener('click', () => this.close());
         
         // Assemble modal
@@ -687,57 +733,19 @@ class Modal {
         this.modalEl.appendChild(this.contentEl);
         document.body.appendChild(this.modalEl);
         
-        // Add modal styles if not already present
-        if (!document.getElementById('gemini-modal-styles')) {
-            const styleEl = document.createElement('style');
-            styleEl.id = 'gemini-modal-styles';
-            styleEl.textContent = `
-                .modal {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.5);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                }
-                
-                .modal-content {
-                    background-color: var(--background-primary);
-                    padding: 20px;
-                    border-radius: 10px;
-                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-                    width: 80%;
-                    max-width: 800px;
-                }
-                
-                .modal-title-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 20px;
-                }
-                
-                .modal-title {
-                    margin: 0;
-                    font-size: 1.5em;
-                }
-                
-                .modal-close-button {
-                    font-size: 24px;
-                    cursor: pointer;
-                    color: var(--text-muted);
-                }
-                
-                .modal-close-button:hover {
-                    color: var(--text-normal);
-                }
-            `;
-            document.head.appendChild(styleEl);
-        }
+        // Add event listener to close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+        
+        // Add event listener to close modal when clicking outside
+        this.modalEl.addEventListener('click', (e) => {
+            if (e.target === this.modalEl) {
+                this.close();
+            }
+        });
     }
     
     close(): void {

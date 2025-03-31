@@ -5,8 +5,8 @@ import { EditorService } from './editorService';
 import { FeatureHandler } from './featureHandler';
 import { ComposerView, COMPOSER_VIEW_TYPE } from './composerView';
 
-
-export default class GeminiAssistantPlugin extends Plugin {
+// Export the plugin class to be used by settings.ts
+export class GeminiAssistantPlugin extends Plugin {
     public settingsManager: SettingsManager;
     public geminiApiService: GeminiAPIService;
     private editorService: EditorService;
@@ -555,4 +555,7 @@ export default class GeminiAssistantPlugin extends Plugin {
             this.composerView.updateSettings(this.settings);
         }
     }
-} 
+}
+
+// Default export for Obsidian
+export default GeminiAssistantPlugin; 

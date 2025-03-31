@@ -1,4 +1,5 @@
 import { App, ButtonComponent, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { GeminiAssistantPlugin } from './main'; // Import your plugin class
 
 export interface GeminiAssistantSettings {
     apiKey: string;
@@ -39,10 +40,10 @@ export class SettingsManager {
 }
 
 export class UISettingsTab extends PluginSettingTab {
-    private plugin: Plugin;
+    private plugin: GeminiAssistantPlugin; // Change type to your specific plugin
     private settingsManager: SettingsManager;
 
-    constructor(app: App, plugin: Plugin, settingsManager: SettingsManager) {
+    constructor(app: App, plugin: GeminiAssistantPlugin, settingsManager: SettingsManager) {
         super(app, plugin);
         this.plugin = plugin;
         this.settingsManager = settingsManager;
@@ -85,28 +86,28 @@ export class UISettingsTab extends PluginSettingTab {
             cls: 'gemini-api-key-save-btn'
         });
         
-        // Handle save button click
+        // Handle save button click, fixing the error
         saveButton.addEventListener('click', async () => {
             const newApiKey = apiKeyInput.value.trim();
             if (newApiKey) {
                 currentSettings.apiKey = newApiKey;
                 await this.settingsManager.saveSettings();
                 
-                // Update API service
+                // Update API service - now uses the correct plugin type
                 this.plugin.geminiApiService.updateSettings(currentSettings);
                 
                 new Notice('API Key saved successfully');
                 
-                // Test connection with new key
+                // Test connection with new key - now uses the correct plugin type
                 this.plugin.testApiConnection()
-                    .then(success => {
+                    .then((success: boolean) => {
                         if (success) {
                             new Notice('API connection verified');
                         } else {
                             new Notice('API connection test failed. Please check your key.');
                         }
                     })
-                    .catch(error => {
+                    .catch((error: unknown) => {
                         new Notice(`API connection error: ${error instanceof Error ? error.message : String(error)}`);
                     });
             } else {
