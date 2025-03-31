@@ -1,0 +1,10 @@
+{
+  "id": "gemini-assistant",
+  "name": "Gemini Assistant",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Integrate Google Gemini's AI capabilities directly into Obsidian for enhancing your note-taking and writing workflow.",
+  "author": "",
+  "authorUrl": "",
+  "isDesktopOnly": false
+} 
