@@ -1,34 +1,62 @@
 import { App, Editor, Menu, Notice, Plugin, MarkdownView, WorkspaceLeaf } from 'obsidian';
-import { SettingsManager, UISettingsTab, DEFAULT_SETTINGS } from './settings';
+import { SettingsManager, UISettingsTab, DEFAULT_SETTINGS, GeminiAssistantSettings } from './settings';
 import { GeminiAPIService } from './geminiApi';
 import { EditorService } from './editorService';
 import { FeatureHandler } from './featureHandler';
 import { ComposerView, COMPOSER_VIEW_TYPE } from './composerView';
 
+
 export default class GeminiAssistantPlugin extends Plugin {
-    private settingsManager: SettingsManager;
-    private geminiApiService: GeminiAPIService;
+    public settingsManager: SettingsManager;
+    public geminiApiService: GeminiAPIService;
     private editorService: EditorService;
     private featureHandler: FeatureHandler;
     private styleElement: HTMLStyleElement;
-    private composerView: ComposerView;
+    private composerView: ComposerView | null = null;
+    public settings: GeminiAssistantSettings;
 
     async onload() {
-        // Initialize the settings manager
+        // Initialize settings manager
         this.settingsManager = new SettingsManager(this);
         await this.settingsManager.loadSettings();
+        this.settings = this.settingsManager.getSettings();
+        
+        // Initialize the API service with settings
+        this.geminiApiService = new GeminiAPIService(this.settings);
+        
+        // Register the composer view
+        this.registerView(
+            COMPOSER_VIEW_TYPE,
+            (leaf) => {
+                this.composerView = new ComposerView(leaf, this.geminiApiService, this.settings);
+                return this.composerView;
+            }
+        );
+        
+        // Add ribbon icon for the composer view
+        this.addRibbonIcon('bot', 'Gemini Assistant', () => {
+            this.activateComposerView();
+        });
+
+        // Add command for opening the composer view
+        this.addCommand({
+            id: 'open-gemini-composer',
+            name: 'Open Gemini Composer',
+            callback: () => {
+                this.activateComposerView();
+            }
+        });
+
+        // Register settings tab - using UISettingsTab which already exists instead of GeminiAssistantSettingTab
+        this.addSettingTab(new UISettingsTab(this.app, this, this.settingsManager));
 
         // Initialize services and feature handler
-        this.geminiApiService = new GeminiAPIService(this.settingsManager.getSettings());
         this.editorService = new EditorService();
         this.featureHandler = new FeatureHandler(
             this.geminiApiService,
             this.editorService,
-            this.settingsManager.getSettings()
+            this.settings
         );
-
-        // Register settings tab
-        this.addSettingTab(new UISettingsTab(this.app, this, this.settingsManager));
 
         // Add global styles with updated design to match Gemini Composer UI
         this.addStyleToDocument(`
@@ -294,15 +322,6 @@ export default class GeminiAssistantPlugin extends Plugin {
             }
         });
 
-        // Add command to open composer view
-        this.addCommand({
-            id: 'open-gemini-composer',
-            name: 'Open Gemini Composer',
-            callback: () => {
-                this.activateView();
-            }
-        });
-
         // Add a command to reset the model if needed
         this.addCommand({
             id: 'reset-gemini-model',
@@ -354,24 +373,6 @@ export default class GeminiAssistantPlugin extends Plugin {
             })
         );
 
-        // Register the composer view
-        this.registerView(
-            COMPOSER_VIEW_TYPE,
-            (leaf: WorkspaceLeaf) => {
-                this.composerView = new ComposerView(
-                    leaf,
-                    this.geminiApiService,
-                    this.settingsManager.getSettings()
-                );
-                return this.composerView;
-            }
-        );
-
-        // Add a ribbon icon for the composer
-        this.addRibbonIcon('bot', 'Gemini Composer', () => {
-            this.activateView();
-        });
-
         // Test API connection on plugin load
         setTimeout(() => {
             this.testApiConnection()
@@ -392,7 +393,7 @@ export default class GeminiAssistantPlugin extends Plugin {
     /**
      * Activate the composer view
      */
-    async activateView() {
+    async activateComposerView() {
         const { workspace } = this.app;
         
         // If view already exists, show it
@@ -417,16 +418,8 @@ export default class GeminiAssistantPlugin extends Plugin {
     /**
      * Test API connection by sending a small request
      */
-    async testApiConnection(): Promise<boolean> {
-        try {
-            const testPrompt = "Hello, this is a test prompt. Please respond with 'OK' only.";
-            const response = await this.geminiApiService.generateContent(testPrompt);
-            console.log('API test response:', response);
-            return true;
-        } catch (error) {
-            console.error('API test failed:', error);
-            throw error;
-        }
+    public async testApiConnection(): Promise<boolean> {
+        return await this.geminiApiService.testConnection();
     }
 
     /**
@@ -458,7 +451,7 @@ export default class GeminiAssistantPlugin extends Plugin {
      */
     async resetModelToDefault(): Promise<void> {
         const settings = this.settingsManager.getSettings();
-        settings.modelName = DEFAULT_SETTINGS.modelName;
+        settings.model = DEFAULT_SETTINGS.model;  // Use model instead of modelName
         await this.settingsManager.saveSettings();
         
         // Update the service with the new settings
@@ -469,7 +462,7 @@ export default class GeminiAssistantPlugin extends Plugin {
             this.composerView.updateSettings(settings);
         }
         
-        new Notice(`Gemini model reset to default: ${DEFAULT_SETTINGS.modelName}`);
+        new Notice(`Gemini model reset to default: ${DEFAULT_SETTINGS.model}`);
     }
 
     /**
@@ -554,5 +547,12 @@ export default class GeminiAssistantPlugin extends Plugin {
         }
         
         console.log(editorInfo);
+    }
+
+    // Helper method to update settings in the composer view
+    updateComposerViewSettings(): void {
+        if (this.composerView) {
+            this.composerView.updateSettings(this.settings);
+        }
     }
 } 
