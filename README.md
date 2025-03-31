@@ -49,4 +49,17 @@ Your API key is stored locally in your Obsidian configuration. While convenient,
 
 ## License
 
-MIT 
+MIT
+
+## Releasing
+
+This plugin uses GitHub Actions to automate the release process. To release a new version:
+
+1. Update the version number in `manifest.json` and `package.json`
+2. Commit your changes: `git commit -am "Update to version X.X.X"`
+3. Tag the new version: `git tag X.X.X`
+4. Push the changes and tags: `git push && git push --tags`
+5. GitHub Actions will automatically build the plugin and create a draft release
+6. Go to the GitHub repository, edit the draft release, and publish it
+
+When the release is published, users will be able to download the latest version of the plugin through Obsidian's community plugins browser. 
